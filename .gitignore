@@ -1,6 +1,11 @@
+.env
 *.swp
+*.h5
 out*.png
+images/
+*.png
 data
 .ipynb_checkpoints
 *.DS_Store
+*.jpg
 *.t7

@@ -292,7 +292,7 @@ cmd:option('-backend', 'cuda', 'cuda|opencl')
         val_loss_history_ts=val_loss_history_ts,
         style_loss_history=style_loss_history,
       }
-      local filename = string.format('%s.json', opt.checkpoint_name)
+      local filename = string.format('%s-%d.json', opt.checkpoint_name, t)
       paths.mkdir(paths.dirname(filename))
       utils.write_json(filename, checkpoint)
 
@@ -303,7 +303,7 @@ cmd:option('-backend', 'cuda', 'cuda|opencl')
       end
       model:float()
       checkpoint.model = model
-      filename = string.format('%s.t7', opt.checkpoint_name)
+      filename = string.format('%s-%d.t7', opt.checkpoint_name, t)
       torch.save(filename, checkpoint)
 
       -- Convert the model back

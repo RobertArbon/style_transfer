@@ -1,0 +1,5 @@
+Tried candy as style with the defaults (i.e. 40000) iteration. 
+There is initially a very large decrease in loss (0-2000) then steady decrease in validation 
+and training loss. 
+Trying with learning rate decay from initial learning rate of 0.01 to 0.001 (the default) every 1000 steps 
+
