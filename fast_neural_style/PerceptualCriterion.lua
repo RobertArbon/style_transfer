@@ -66,7 +66,7 @@ end
 
 
 --[[
-target: Tensor of shape (1, 3, H, W) giving pixels for style target image
+target: Tensor of shape (1/N, 3, H, W) giving pixels for style target image
 --]]
 function crit:setStyleTarget(target)
   for i, content_loss_layer in ipairs(self.content_loss_layers) do
@@ -80,7 +80,7 @@ end
 
 
 --[[
-target: Tensor of shape (N, 3, H, W) giving pixels for content target images
+target: Tensor of shape (N/1, 3, H, W) giving pixels for content target images
 --]]
 function crit:setContentTarget(target)
   for i, style_loss_layer in ipairs(self.style_loss_layers) do
@@ -111,15 +111,16 @@ end
 Inputs:
 - input: Tensor of shape (N, 3, H, W) giving pixels for generated images
 - target: Table with the following keys:
-  - content_target: Tensor of shape (N, 3, H, W)
-  - style_target: Tensor of shape (1, 3, H, W)
+  - content_target: Tensor of shape (N/1, 3, H, W)
+  - style_target: Tensor of shape (1/N, 3, H, W)
 --]]
 function crit:updateOutput(input, target)
   if target.content_target then
     self:setContentTarget(target.content_target)
   end
   if target.style_target then
-    self.setStyleTarget(target.style_target)
+    -- REA - pretty sure this should be a colon...not a dot as original. 
+    self:setStyleTarget(target.style_target)
   end
 
   -- Make sure to set all content and style loss layers to loss mode before

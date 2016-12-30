@@ -103,7 +103,7 @@ function DataLoader:getBatch(split)
     local y_images_pre = self.preprocess_fn(y_images:float())
     
     return images_pre, y_images_pre
-  elseif self.task == 'style' then
+  elseif (self.task == 'style' or self.task == 'feat') then
     -- For style transfer just return the images twice
     return images_pre, images_pre
   end

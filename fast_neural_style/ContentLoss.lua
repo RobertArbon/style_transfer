@@ -43,7 +43,7 @@ function ContentLoss:updateOutput(input)
     self.loss = self.strength * self.crit:forward(input, self.target)
   end
   self.output = input
-  return self.output
+  return self.output  
 end
 
 

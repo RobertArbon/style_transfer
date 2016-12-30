@@ -19,8 +19,8 @@ Train a feedforward style transfer model
 -- Generic options
 cmd:option('-arch', 'c9s1-32,d64,d128,R128,R128,R128,R128,R128,u64,u32,c9s1-3')
 cmd:option('-use_instance_norm', 1)
-cmd:option('-task', 'style', 'style|upsample')
-cmd:option('-h5_file', 'data/ms-coco-256.h5')
+cmd:option('-task', 'feat', 'style|feat|upsample')
+cmd:option('-h5_file', '/home/robert/style_transfer/fast-neural-style/images/hd5s/coco2014-8000.h5')
 cmd:option('-padding_type', 'reflect-start')
 cmd:option('-tanh_constant', 150)
 cmd:option('-preprocessing', 'vgg')
@@ -38,7 +38,7 @@ cmd:option('-content_layers', '16')
 cmd:option('-loss_network', 'models/vgg16.t7')
 
 -- Options for style reconstruction loss
-cmd:option('-style_image', 'images/styles/candy.jpg')
+cmd:option('-style_image', '/home/robert/style_transfer/fast-neural-style/images/content/chicago.jpg')
 cmd:option('-style_image_size', 256)
 cmd:option('-style_weights', '5.0')
 cmd:option('-style_layers', '4,9,16,23')
@@ -48,7 +48,7 @@ cmd:option('-style_target_type', 'gram', 'gram|mean')
 cmd:option('-upsample_factor', 4)
 
 -- Optimization
-cmd:option('-num_iterations', 40000)
+cmd:option('-num_iterations', 1)
 cmd:option('-max_train', -1)
 cmd:option('-batch_size', 4)
 cmd:option('-learning_rate', 1e-3)
@@ -132,6 +132,15 @@ cmd:option('-backend', 'cuda', 'cuda|opencl')
       local H, W = style_image:size(2), style_image:size(3)
       style_image = preprocess.preprocess(style_image:view(1, 3, H, W))
       percep_crit:setStyleTarget(style_image:type(dtype))
+      
+    -- REA set a content target rather than style target
+    elseif opt.task == 'feat' then
+      -- Loadt the feature image and set it 
+      local feat_image = image.load(opt.style_image, 3, 'float')
+      feat_image = image.scale(feat_image, opt.style_image_size)
+      local H, W = feat_image:size(2), feat_image:size(3)
+      feat_image = preprocess.preprocess(feat_image:view(1, 3, H, W))
+      percep_crit:setContentTarget(feat_image:type(dtype))
     end
   end
 
@@ -153,12 +162,14 @@ cmd:option('-backend', 'cuda', 'cuda|opencl')
   
 
   local function f(x)
+  -- OBJECTIVE FUNCTION TO MINIMIZE.  
+  
     assert(x == params)
     grad_params:zero()
     
     local x, y = loader:getBatch('train')
     x, y = x:type(dtype), y:type(dtype)
-
+  
     -- Run model forward
     local out = model:forward(x)
     local grad_out = nil
@@ -178,7 +189,7 @@ cmd:option('-backend', 'cuda', 'cuda|opencl')
 
     -- Compute pixel loss and gradient
     local pixel_loss = 0
-      if pixel_crit then
+    if pixel_crit then
       pixel_loss = pixel_crit:forward(out, y)
       pixel_loss = pixel_loss * opt.pixel_loss_weight
       local grad_out_pix = pixel_crit:backward(out, y)
@@ -193,7 +204,15 @@ cmd:option('-backend', 'cuda', 'cuda|opencl')
     -- Compute perceptual loss and gradient
     local percep_loss = 0
     if percep_crit then
-      local target = {content_target=y}
+    
+      -- REA Set the target to be style or feature accordingly
+      local target = {}
+      if opt.task == 'style' then
+        target = {content_target=y}
+      elseif opt.task == 'feat' then
+        target = {style_target=y}
+      end
+
       percep_loss = percep_crit:forward(out, target)
       percep_loss = percep_loss * opt.percep_loss_weight
       local grad_out_percep = percep_crit:backward(out, target)
@@ -222,7 +241,8 @@ cmd:option('-backend', 'cuda', 'cuda|opencl')
   local val_loss_history = {}
   local val_loss_history_ts = {}
   local style_loss_history = nil
-  if opt.task == 'style' then
+  -- TODO change history to reflect content loss
+  if opt.task == 'style' or opt.task == 'feat' then
     style_loss_history = {}
     for i, k in ipairs(opt.style_layers) do
       style_loss_history[string.format('style-%d', k)] = {}
@@ -239,8 +259,9 @@ cmd:option('-backend', 'cuda', 'cuda|opencl')
     local _, loss = optim.adam(f, params, optim_state)
 
     table.insert(train_loss_history, loss[1])
-
-    if opt.task == 'style' then
+    
+    -- TODO change history to reflect content loss
+    if opt.task == 'style' or opt.task == 'feat' then
       for i, k in ipairs(opt.style_layers) do
         table.insert(style_loss_history[string.format('style-%d', k)],
           percep_crit.style_losses[i])
