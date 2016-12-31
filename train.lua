@@ -42,14 +42,14 @@ cmd:option('-loss_network', 'models/vgg16.t7')
 cmd:option('-style_image', '/home/robert/style_transfer/fast-neural-style/images/content/chicago.jpg')
 cmd:option('-style_image_size', 256)
 cmd:option('-style_weights', '5.0')
-cmd:option('-style_layers', '9')
+cmd:option('-style_layers', '4,9,16,23')
 cmd:option('-style_target_type', 'gram', 'gram|mean')
 
 -- Upsampling options
 cmd:option('-upsample_factor', 4)
 
 -- Optimization
-cmd:option('-num_iterations', 1)
+cmd:option('-num_iterations', 40000)
 cmd:option('-max_train', -1)
 cmd:option('-batch_size', 4)
 cmd:option('-learning_rate', 1e-3)
@@ -111,6 +111,8 @@ cmd:option('-backend', 'cuda', 'cuda|opencl')
       pixel_crit = nn.SmoothL1Criterion():type(dtype)
     end
   end
+  
+  local loader = DataLoader(opt)
 
   -- Set up the perceptual loss function
   local percep_crit
@@ -125,9 +127,7 @@ cmd:option('-backend', 'cuda', 'cuda|opencl')
       agg_type = opt.style_target_type,
     }
     percep_crit = nn.PerceptualCriterion(crit_args):type(dtype)
-    
-    local loader = DataLoader(opt)
-    local params, grad_params = model:getParameters()
+
     
     if opt.task == 'style' then
       -- Load the style image and set it
@@ -161,8 +161,8 @@ cmd:option('-backend', 'cuda', 'cuda|opencl')
       end
       H, W = feat_image:size(2), feat_image:size(3)
       
-      print('Training images size %d x %d', h, w)
-      print('Target images size %d x %d', H, W)
+      print(string.format('Training images size %d x %d', h, w))
+      print(string.format('Target images size %d x %d', H, W))
       
       feat_image = preprocess.preprocess(feat_image:view(1, 3, H, W))
       percep_crit:setContentTarget(feat_image:type(dtype))
@@ -170,7 +170,7 @@ cmd:option('-backend', 'cuda', 'cuda|opencl')
   end
 
 
-
+  local params, grad_params = model:getParameters()
 
   local function shave_y(x, y, out)
     if opt.padding_type == 'none' then
