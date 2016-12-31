@@ -1,6 +1,7 @@
 require 'torch'
 require 'optim'
 require 'image'
+require 'math'
 
 require 'fast_neural_style.DataLoader'
 require 'fast_neural_style.PerceptualCriterion'
@@ -41,7 +42,7 @@ cmd:option('-loss_network', 'models/vgg16.t7')
 cmd:option('-style_image', '/home/robert/style_transfer/fast-neural-style/images/content/chicago.jpg')
 cmd:option('-style_image_size', 256)
 cmd:option('-style_weights', '5.0')
-cmd:option('-style_layers', '4,9,16,23')
+cmd:option('-style_layers', '9')
 cmd:option('-style_target_type', 'gram', 'gram|mean')
 
 -- Upsampling options
@@ -124,7 +125,10 @@ cmd:option('-backend', 'cuda', 'cuda|opencl')
       agg_type = opt.style_target_type,
     }
     percep_crit = nn.PerceptualCriterion(crit_args):type(dtype)
-
+    
+    local loader = DataLoader(opt)
+    local params, grad_params = model:getParameters()
+    
     if opt.task == 'style' then
       -- Load the style image and set it
       local style_image = image.load(opt.style_image, 3, 'float')
@@ -133,19 +137,39 @@ cmd:option('-backend', 'cuda', 'cuda|opencl')
       style_image = preprocess.preprocess(style_image:view(1, 3, H, W))
       percep_crit:setStyleTarget(style_image:type(dtype))
       
-    -- REA set a content target rather than style target
+    --[[
+      REA: set a content target rather than style target
+      it matters here whether the feat_image is the same as the 
+      training data.  So resize to force same size as training data.
+    --]]
     elseif opt.task == 'feat' then
-      -- Loadt the feature image and set it 
+      -- To scale and crops to get feature image and training set the same size
+      local x, _ = loader:getBatch('train')
+      x = x:type(dtype)
+      h,w = x:size(3), x:size(4)
       local feat_image = image.load(opt.style_image, 3, 'float')
-      feat_image = image.scale(feat_image, opt.style_image_size)
-      local H, W = feat_image:size(2), feat_image:size(3)
+      
+      -- Scale to width then crop 
+      feat_image = image.scale(feat_image, w, feat_image:size(2))
+      if feat_image:size(2) > h then
+        feat_image = image.crop(feat_image, 'c', w, h)
+      end
+      -- Scale to height then crop
+      feat_image = image.scale(feat_image, feat_image:size(3), h)
+      if feat_image:size(3) > w then
+        feat_image = image.crop(feat_image, 'c', w, h)
+      end
+      H, W = feat_image:size(2), feat_image:size(3)
+      
+      print('Training images size %d x %d', h, w)
+      print('Target images size %d x %d', H, W)
+      
       feat_image = preprocess.preprocess(feat_image:view(1, 3, H, W))
       percep_crit:setContentTarget(feat_image:type(dtype))
     end
   end
 
-  local loader = DataLoader(opt)
-  local params, grad_params = model:getParameters()
+
 
 
   local function shave_y(x, y, out)

@@ -38,17 +38,25 @@ end
 
 function ContentLoss:updateOutput(input)
   if self.mode == 'capture' then
+    
     self.target:resizeAs(input):copy(input)
+    print('ContentLoss - capture:')
+    print('\t target:size()', self.target:size())
+    print('\t input:size()', input:size())
   elseif self.mode == 'loss' then
+    print('ContentLoss - loss:')
+    print('\t target:size()', self.target:size())
+    print('\t input:size()', input:size())
     -- For feature transfer the input can be larger than the target (when using mini-batches) 
-    -- so use similar approach in StyleLoss.lua
+    --[[so use similar approach in StyleLoss.lua
     local target = self.target
     if input:size(1) > 1 and self.target:size(1) == 1 then
       target = target:expandAs(input)
     end
-    self.loss = self.strength * self.crit:forward(input, target)
+    --]]
+    self.loss = self.strength * self.crit:forward(input, self.target)
   end
-  self._target = target
+  --self._target = target
   self.output = input
   return self.output  
 end

@@ -40,12 +40,18 @@ function StyleLoss:updateOutput(input)
   self.agg_out = self.agg:forward(input)
   if self.mode == 'capture' then
     self.target:resizeAs(self.agg_out):copy(self.agg_out)
+    print('StyleLoss - capture:')
+    print('\t target:size()', self.target:size())
+    print('\t agg_out:size()', self.agg_out:size())
   elseif self.mode == 'loss' then
     local target = self.target
     if self.agg_out:size(1) > 1 and self.target:size(1) == 1 then
       -- Handle minibatch inputs
       target = target:expandAs(self.agg_out)
     end
+    print('StyleLoss - loss:')
+    print('\t target:size()', target:size())
+    print('\t agg_out:size()', self.agg_out:size())
     self.loss = self.strength * self.crit(self.agg_out, target)
     self._target = target
   end
